@@ -24,13 +24,13 @@ jobs:
         echo "Changed projects:"
         git diff --name-only HEAD^ HEAD | grep -o '^[^/]*' | sort -u | tee changed_projects.txt
         while read project; do
-          echo "::set-output name=${project}_changed::true"
+          echo "${project}_changed=true" >> $GITHUB_ENV
         done < changed_projects.txt
 
     - name: Process changed projects
       run: |
         while read project; do
-          if [ "${{ steps.changes.outputs.${project}_changed }}" == "true" ]; then
+          if [ "${{ env.${project}_changed }}" == "true" ]; then
             echo "Processing $project..."
             cd $project
             python -m pip install --upgrade pip
