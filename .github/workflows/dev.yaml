@@ -30,7 +30,7 @@ jobs:
     - name: Process changed projects
       run: |
         while read project; do
-          if [ "${{ env.${project}_changed }}" == "true" ]; then
+          if [ "$(printenv ${project}_changed)" == "true" ]; then
             echo "Processing $project..."
             cd $project
             python -m pip install --upgrade pip
