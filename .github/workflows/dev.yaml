@@ -1,1 +1,43 @@
+name: CI/CD Pipeline - Development
 
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Detect changed projects
+      id: changes
+      run: |
+        echo "Changed projects:"
+        git diff --name-only HEAD^ HEAD | grep -o '^[^/]*' | sort -u | tee changed_projects.txt
+        while read project; do
+          echo "::set-output name=${project}_changed::true"
+        done < changed_projects.txt
+
+    - name: Process changed projects
+      run: |
+        while read project; do
+          if [ "${{ steps.changes.outputs.${project}_changed }}" == "true" ]; then
+            echo "Processing $project..."
+            cd $project
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+            # Add your test commands here
+            echo "Running tests for $project..."
+            cd ..
+            gh pr create --title "Update $project" --body "Automated pull request to update $project" --base main --head dev
+          fi
+        done < changed_projects.txt
