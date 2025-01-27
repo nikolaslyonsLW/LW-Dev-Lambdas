@@ -1,12 +1,12 @@
-name: CI/CD Pipeline - Development
+name: CI/CD Pipeline - Sync to Production
 
 on:
   push:
     branches:
-      - dev
+      - main  # This runs the workflow when dev is merged into main
 
 jobs:
-  build:
+  sync_to_production:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,7 +18,7 @@ jobs:
       with:
         python-version: '3.x'
 
-    - name: Detect changed projects
+    - name: Detect changed projects from the merge
       id: changes
       run: |
         echo "Changed projects:"
@@ -27,17 +27,43 @@ jobs:
           echo "${project}_changed=true" >> $GITHUB_ENV
         done < changed_projects.txt
 
-    - name: Process changed projects
+    - name: Sync changed projects to production repository
+      env:
+        PROD_REPO: "git@github.com:nikolaslyonsLW/LW-Prod-Lambdas.git"  # Change this to your actual production repo
+        GITHUB_TOKEN: ${{ secrets.TOKEN_PROD }}
       run: |
+        # Set up SSH key if using SSH auth (optional)
+        mkdir -p ~/.ssh
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+        
+        # Clone the production repository
+        git clone $PROD_REPO production-repo
+        cd production-repo
+
+        # Configure Git user
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
+
+        cd ..
+        
         while read project; do
           if [ "$(printenv ${project}_changed)" == "true" ]; then
-            echo "Processing $project..."
-            cd $project
-            python -m pip install --upgrade pip
-            pip install -r requirements.txt
-            # Add your test commands here
-            echo "Running tests for $project..."
+            echo "Syncing $project to production repo..."
+            
+            # Copy changed project files to the production repo
+            cp -r $project production-repo/$project
+
+            # Navigate to the production repo
+            cd production-repo
+            
+            # Commit and push changes
+            git add $project
+            git commit -m "Auto-sync $project from main repo"
+            git push origin main  # Change this if the production repo uses a different branch
+            
+            # Create a PR in the production repository (optional)
+            gh pr create --title "Sync $project" --body "Automated PR to update $project in production" --repo your-org/production-repo --base main --head dev || echo "PR creation failed, possibly due to lack of changes."
+            
             cd ..
-            gh pr create --title "Update $project" --body "Automated pull request to update $project" --base main --head dev
           fi
         done < changed_projects.txt
