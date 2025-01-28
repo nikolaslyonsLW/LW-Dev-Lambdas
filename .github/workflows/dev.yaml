@@ -1,4 +1,4 @@
-name: CI/CD Pipeline - Sync DEV Files to Production
+name: CI/CD Pipeline - Sync DEV Folders to Production
 
 on:
   push:
@@ -13,25 +13,25 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Detect changed files with `_dev`
+    - name: Detect changed folders with `_dev`
       id: changes
       run: |
-        echo "Changed files with _dev:"
-        
+        echo "Changed DEV folders:"
+
         # Fetch history to ensure HEAD^ works
         git fetch --prune --unshallow || true
-        
-        # Get changed files that contain `_dev`
+
+        # Get changed folders that contain `_dev`
         if git rev-parse HEAD^ >/dev/null 2>&1; then
-          git diff --name-only HEAD^ HEAD | grep '_dev' | tee changed_files.txt || true
+          git diff --name-only HEAD^ HEAD | grep '_dev/' | awk -F'/' '{print $1}' | sort -u | tee changed_folders.txt || true
         else
-          echo "No previous commit, skipping diff check." > changed_files.txt
+          echo "No previous commit, skipping diff check." > changed_folders.txt
         fi
 
-        # Export each changed file as an environment variable
-        while read file; do
-          echo "${file}_changed=true" >> $GITHUB_ENV
-        done < changed_files.txt
+        # Export each changed folder as an environment variable
+        while read folder; do
+          echo "${folder}_changed=true" >> $GITHUB_ENV
+        done < changed_folders.txt
 
     - name: Clone production repository
       env:
@@ -44,25 +44,25 @@ jobs:
         git config --global user.email "github-actions@github.com"
         cd ..
 
-    - name: Sync `_dev` files to production and remove `_dev`
+    - name: Sync `_dev` folders to production and remove `_dev`
       run: |
-        while read file; do
-          if [ "$(printenv ${file}_changed)" == "true" ]; then
-            echo "Syncing $file to production repo..."
+        while read folder; do
+          if [ "$(printenv ${folder}_changed)" == "true" ]; then
+            echo "Syncing $folder to production repo..."
 
-            # Remove _dev from filename
-            new_file=$(echo $file | sed 's/_dev//')
+            # Remove _dev from folder name
+            new_folder=$(echo $folder | sed 's/_dev//')
 
-            # Copy file with new name to production repository
-            cp "$file" "production-repo/$new_file"
+            # Copy folder with new name to production repository
+            cp -r "$folder" "production-repo/$new_folder"
 
             cd production-repo
 
-            # Commit and push the file
-            git add "$new_file"
-            git commit -m "Auto-sync $file as $new_file from main repo"
+            # Commit and push the folder
+            git add "$new_folder"
+            git commit -m "Auto-sync $folder as $new_folder from main repo"
             git push origin main
 
             cd ..
           fi
-        done < changed_files.txt
+        done < changed_folders.txt
