@@ -16,17 +16,26 @@ jobs:
     - name: Detect changed files with DEV
       id: changes
       run: |
-        # Detect files with "DEV" in their name that changed in the last commit
         echo "Changed dev files:"
-        git diff --name-only HEAD^ HEAD | grep 'dev' | tee changed_files.txt
-
+        
+        # Fetch history to ensure HEAD^ works
+        git fetch --prune --unshallow || true
+        
+        # Check if there's at least one previous commit
+        if git rev-parse HEAD^ >/dev/null 2>&1; then
+          git diff --name-only HEAD^ HEAD | grep 'dev' | tee changed_files.txt
+        else
+          echo "No previous commit, skipping diff check." > changed_files.txt
+        fi
+        
         # Extract unique project directories from the changed files
         awk -F'/' '{print $1}' changed_files.txt | sort -u | tee changed_projects.txt
-
+        
         # Export each changed project as an environment variable
         while read project; do
           echo "${project}_changed=true" >> $GITHUB_ENV
         done < changed_projects.txt
+
 
     - name: Sync changed projects to production repository
       env:
