@@ -3,7 +3,7 @@ name: CI/CD Pipeline - Sync to Production
 on:
   push:
     branches:
-      - main  # This runs the workflow when dev is merged into main
+      - main  # Trigger when changes are pushed or merged into main branch in the dev repo
 
 jobs:
   sync_to_production:
@@ -13,26 +13,27 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
-
-    - name: Detect changed projects from the merge
+    - name: Detect changed files with DEV
       id: changes
       run: |
-        echo "Changed projects:"
-        git diff --name-only HEAD^ HEAD | grep -o '^[^/]*' | sort -u | tee changed_projects.txt
+        # Detect files with "DEV" in their name that changed in the last commit
+        echo "Changed DEV files:"
+        git diff --name-only HEAD^ HEAD | grep 'DEV' | tee changed_files.txt
+
+        # Extract unique project directories from the changed files
+        awk -F'/' '{print $1}' changed_files.txt | sort -u | tee changed_projects.txt
+
+        # Export each changed project as an environment variable
         while read project; do
           echo "${project}_changed=true" >> $GITHUB_ENV
         done < changed_projects.txt
 
     - name: Sync changed projects to production repository
       env:
-        PROD_REPO: "https://github.com/nikolaslyonsLW/LW-Prod-Lambdas.git"  
+        PROD_REPO: "https://github.com/nikolaslyonsLW/LW-Prod-Lambdas.git"
         GITHUB_TOKEN: ${{ secrets.TOKEN_PROD }}
       run: |
-        # Clone the production repository using HTTPS
+        # Clone the production repository
         git clone https://x-access-token:${{ secrets.TOKEN_PROD }}@github.com/nikolaslyonsLW/LW-Prod-Lambdas.git production-repo
         cd production-repo
 
@@ -41,21 +42,21 @@ jobs:
         git config --global user.email "github-actions@github.com"
 
         cd ..
-        
+
+        # Loop through changed projects and sync them to production
         while read project; do
           if [ "$(printenv ${project}_changed)" == "true" ]; then
             echo "Syncing $project to production repo..."
             
-            # Copy changed project files to the production repo
+            # Copy project files to production repository
             cp -r $project production-repo/$project
 
-            # Navigate to the production repo
             cd production-repo
             
-            # Commit and push changes
+            # Commit and push changes to the production repository
             git add $project
             git commit -m "Auto-sync $project from main repo"
-            git push origin main  # Change this if the production repo uses a different branch
+            git push origin main  # Use the main branch of the production repository
             
             cd ..
           fi
