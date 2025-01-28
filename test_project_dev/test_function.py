@@ -2,7 +2,7 @@ import json
 
 def lambda_handler(event, context):
     # TODO Implement Logic
-    variable="hello"
+    variable = "this is a test"
     return {{
         
         'statusCode': 200,
