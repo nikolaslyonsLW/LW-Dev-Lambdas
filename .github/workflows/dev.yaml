@@ -29,11 +29,11 @@ jobs:
 
     - name: Sync changed projects to production repository
       env:
-        PROD_REPO: "git@github.com:nikolaslyonsLW/LW-Prod-Lambdas.git"  # Change this to your actual production repo
+        PROD_REPO: "https://github.com/nikolaslyonsLW/LW-Prod-Lambdas.git"  
         GITHUB_TOKEN: ${{ secrets.TOKEN_PROD }}
       run: |
-        # Clone the production repository
-        git clone $PROD_REPO production-repo
+        # Clone the production repository using HTTPS
+        git clone https://x-access-token:${{ secrets.TOKEN_PROD }}@github.com/nikolaslyonsLW/LW-Prod-Lambdas.git production-repo
         cd production-repo
 
         # Configure Git user
@@ -56,9 +56,6 @@ jobs:
             git add $project
             git commit -m "Auto-sync $project from main repo"
             git push origin main  # Change this if the production repo uses a different branch
-            
-            # Create a PR in the production repository (optional)
-            gh pr create --title "Sync $project" --body "Automated PR to update $project in production" --repo your-org/production-repo --base main --head dev || echo "PR creation failed, possibly due to lack of changes."
             
             cd ..
           fi
