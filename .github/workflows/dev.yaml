@@ -17,8 +17,8 @@ jobs:
       id: changes
       run: |
         # Detect files with "DEV" in their name that changed in the last commit
-        echo "Changed DEV files:"
-        git diff --name-only HEAD^ HEAD | grep 'DEV' | tee changed_files.txt
+        echo "Changed dev files:"
+        git diff --name-only HEAD^ HEAD | grep 'dev' | tee changed_files.txt
 
         # Extract unique project directories from the changed files
         awk -F'/' '{print $1}' changed_files.txt | sort -u | tee changed_projects.txt
