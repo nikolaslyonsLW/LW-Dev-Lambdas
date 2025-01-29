@@ -44,23 +44,26 @@ jobs:
         git config --global user.email "github-actions@github.com"
         cd ..
 
-    - name: Sync `_dev` folders to production and remove `_dev`
+    - name: Sync changed files (without deleting the entire project)
       run: |
         while read folder; do
           if [ "$(printenv ${folder}_changed)" == "true" ]; then
-            echo "Syncing $folder to production repo..."
+            echo "Syncing changes from $folder to production repo..."
 
             # Remove _dev from folder name
             new_folder=$(echo $folder | sed 's/_dev//')
 
-            # Copy folder with new name to production repository
-            cp -r "$folder" "production-repo/$new_folder"
+            # Ensure folder exists in production repo
+            mkdir -p "production-repo/$new_folder"
+
+            # Copy only updated files to production repo (preserves existing files)
+            rsync -av --ignore-existing "$folder/" "production-repo/$new_folder/"
 
             cd production-repo
 
-            # Commit and push the folder
+            # Commit and push only the modified files
             git add "$new_folder"
-            git commit -m "Auto-sync $folder as $new_folder from main repo"
+            git commit -m "Auto-update $new_folder from main repo" || echo "No changes to commit."
             git push origin main
 
             cd ..
