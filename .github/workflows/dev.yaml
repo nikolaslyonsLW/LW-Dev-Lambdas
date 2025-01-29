@@ -56,6 +56,8 @@ jobs:
             # Ensure folder exists in production repo
             mkdir -p "production-repo/$new_folder"
 
+            # Copy only updated files to production repo 
+            rsync -av  "$folder/" "production-repo/$new_folder/"
 
             cd production-repo
 
